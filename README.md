@@ -6,4 +6,15 @@ The Cosmos SDK is a structure of interoperable modules aggregated to support Cos
 
 The nameserver module stores the value, owner, and price of a name. To impliment this functionality, the module uses the Auth module for account services, the Bank module for transactions between accounts, the Staking module for updating validators, and the Param module to populate a global parameter store.
 ## Contents
-*User Guide*
+1. **[User Guide](userguide.md)**
+	- [Introduction](userguide.md#Introduction)
+	- [Modules and Components](userguide.md#"Modules and Components")
+	- [Customization](userguide.md#Customization)
+2. **[Implementation](implementation.md)**
+	- [Introduction](implementation.md#Introduction)
+	- [Concept](implementation.md#Concept)
+	- [State](implementation.md#State)
+	- [Messages](implementation.md#Messages)
+	- [Events](implementation.md#Events)
+	- [Parameters](implementation.md#Parameters)
+	
