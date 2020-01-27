@@ -8,7 +8,7 @@ The nameserver module stores the value, owner, and price of a name. To impliment
 ## Contents
 1. **[User Guide](userguide.md)**
 	- [Introduction](userguide.md#Introduction)
-	- [Modules and Components](userguide.md#Modules and Components)
+	- [Modules and Components](userguide.md#Modules-and-Components)
 	- [Customization](userguide.md#Customization)
 2. **[Implementation](implementation.md)**
 	- [Introduction](implementation.md#Introduction)
