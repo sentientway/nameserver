@@ -1,8 +1,8 @@
 # nameserver
 ## Abstract
-This module impliments a distributed nameserver app that performs the function of DNS in the client server model. The Proof of Stake (PoS) model implimented by Cosmos requires a nameserver app for a public blockchain. This requirement will be discussed at greater length in the introduction.
+This document describes the distributed nameserver module that performs the peer-to-peer function of DNS in the client server model. It includes a short user guide explaining the modules integration into an SDK-based application and a detailed description of the modules implementation.
 
-The Cosmos SDK includes this module as a boilerplate to aid in customizing a nameserver module to meet the requirements for the blockchain or *distributed* application. Cosmos offers a tutorial for creating the same nameserver boilerplate using the Cosmos scaffold tool, which is an excellent way to become familar with Cosmos SDK.
+The Cosmos SDK is a structure of interoperable modules aggregated to support Cosmos application development. Each module has its own Message/Transaction processor. The baseapp component in the SDK handles all communication with Tendermint, and routes all queries and transactions to each of the respective modules handlers.
 
-This document presents the components within a nameserver application, how the different modules work together in the blockchain application, and which modules to customize to meet application requirements. The goal is to minimize the coding required by the application developer.
+The nameserver module stores the value, owner, and price of a name. To impliment this functionality, the module uses the Auth module for account services, the Bank module for transactions between accounts, the Staking module for updating validators, and the Param module to populate a global parameter store.
 ## Contents
