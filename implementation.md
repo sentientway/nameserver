@@ -1,12 +1,12 @@
 # Implementation Guide
 ## Introduction
-The Nameserver module is one of several modules a developer will use to create an SDK application, whose specific logic and structure conforms to the general module structure.
+The Nameservice module is one of several modules a developer will use to create an SDK application, whose specific logic and structure conforms to the general module structure.
 
-The AppModule stitches the different modules together into a complete SDK application using the Tendermint core for consensus. Communication with the consensus engine over the Application Blockchain Consensus Interface (ABCI) using BaseApp to implement this core logic.
+The AppModule stitches the different modules together into a complete SDK application using the Tendermint core for consensus. Communication with the consensus engine over the Application Blockchain Consensus Interface (ABCI) uses BaseApp to implement this core logic.
 
-This document presents the nameserver module from concept to development of the CLI.
+This document presents the nameservice module from concept to development of the CLI commands.
 ## Concept
-The nameserver module maps a name to an owner, resolution value, and name price. The module transfers names between users, deletes names, and creates new names that satisfy the minimum name price. The minimum price is set elsewhere in the SDK application.
+The nameservice module maps a name to an owner, resolution value, and name price. The module transfers names between users, deletes names, and creates new names that satisfy the minimum name price. The minimum price is set elsewhere in the SDK application.
 ## State
 The state of this module is stored in a single key/value store (KVStore), which is added to a single multistore that contains all KVStores for the application. The triggers for state change are:
 
@@ -14,17 +14,17 @@ The state of this module is stored in a single key/value store (KVStore), which 
 2. Removing an existing name.
 3. Transfer of ownership.
 
-Each of these actions require several transactions within the nameserver state machine. Messages that prompt these actions must adhere to a msgType, have a handler for each message, a keeper for the KVStore, the ability to handle queries, reference a Codec, and create a CLI.
+Each of these actions require several transactions within the nameservice state machine. Messages that prompt these actions must adhere to a msgType, have a handler for each message, a keeper for the KVStore, the ability to handle queries, reference a Codec, and create a CLI.
 
 A module can call the KVStore(s) of another module if it is passed.
 ## Messages
 Each module has its own message and transaction processor. Several *routines* and *subroutines* are used across modules to handle messages related to module specific transactions.
 
-Messages trigger state transitions. They are passed to *Handlers* who then pass the action to the appropriate *Keeper*, which updates the *State*.
+Messages trigger state transitions. They are passed to *Handlers* who then pass the action to the appropriate *Keeper*, which updates *State*.
 
 The separation of message processing between the module's handler and keeper enhances security. Each keeper, which updates *State*, is specialized to a *type*, whereas, depending on the module, handlers can specify different *types*. In the case of this module, there is only one type across all three handlers.
 
-The nameserver module uses three messages:
+The nameservice module uses three messages:
 - MsgSetName
 - MsgBuyName
 - MsgDelName
@@ -51,7 +51,7 @@ The nameserver module uses three messages:
 		GetSigners() []AccAddress
 	}
 ## Handlers
-The nameserver uses three Handlers, one for each nameserver message SetName, BuyName, and DeleteName.
+The nameservice module uses three Handlers, one for each nameserver message, which are SetName, BuyName, and DeleteName.
 
 **MsgSetName:**
 
@@ -265,7 +265,7 @@ The nameserver uses three Handlers, one for each nameserver message SetName, Buy
 	func (msg MsgSetName) Type() string { return "set_name" }
 
 ## Types
-The type *nameserver* is embedded in *baseapp*, which handles all communication with Tendermint Core.
+The type *nameservice* is embedded in *baseapp*, which handles all communication with Tendermint Core.
   
 	package types
 	
@@ -376,8 +376,8 @@ Getters and Setters add methods to interact with the nameserver KVStore.
 		if whois.Owner.Empty() {
 			return
     		}
-    	store := ctx.KVStore(k.storeKey
-    	store := ctx.KVStore(k.storeKey
+    	store := ctx.KVStore(k.storeKey)
+    	store := ctx.KVStore(k.storeKey)
 	}
 
 	// Gets the entire Whois metadata struct for a name
@@ -434,6 +434,7 @@ Getters and Setters add methods to interact with the nameserver KVStore.
 	}
 
 ## CLI
+The Cosmos SDK uses the golang library Cobra to implement the CLI. The basic structure is *APPNAME Command Args --Flags.
 
 **Queries:**
 
@@ -637,32 +638,30 @@ Getters and Setters add methods to interact with the nameserver KVStore.
 		}
 	}
 
-	# First check the accounts to ensure they have funds
-	nscli query account $(nscli keys show jack -a)
-	nscli query account $(nscli keys show alice -a)
+### Commands
+The Cosmos SDK adopts the naming convention that maps APPNAME onto an app name abreviation with cli appended. For example, an application named namerserver maps to nscli. For the list of commands specific to the nameserver module the app name abreviation is *.
 
-	# Buy your first name using your coins from the genesis file
-	nscli tx nameservice buy-name jack.id 5nametoken --from jack
+**Queries:**
 
-	# Set the value for the name you just bought
-	nscli tx nameservice set-name jack.id 8.8.8.8 --from jack
+	*cli query account $(*cli keys show *Owner* -a)
+	
+	*cli query nameservice resolve *Owner*.id
+	
+	*cli query nameservice whois *Owner*.id
+	
+**Transactions:**
+	
+	*cli tx nameservice buy-name *name*.id 5nametoken --from seller
+	
+	# Set the value for the purchased name
+	*cli tx nameservice set-name *name*.id 8.8.8.8 --from *Owner*
 
-	# Try out a resolve query against the name you registered
-	nscli query nameservice resolve jack.id
-	# > 8.8.8.8
+	#  buys name from *Owner*
+	*cli tx nameservice buy-name *Owner*.id 10nametoken --from Buyer
 
-	# Try out a whois query against the name you just registered
-	nscli query nameservice whois jack.id
-	# > 	{"value":"8.8.8.8","owner":"cosmos1l7k5tdt2qam0zecxrx78yuw447ga54dsmtpk2s","price":[{"denom":"nametoken","amount":"5"}]}
+	# Delete Name
+	*cli tx nameservice delete-name *name*.id --from alice
 
-	# Alice buys name from jack
-	nscli tx nameservice buy-name jack.id 10nametoken --from alice
-
-	# Alice decides to delete the name she just bought from jack
-	nscli tx nameservice delete-name jack.id --from alice
-
-	# Try out a whois query against the name you just deleted
-	nscli query nameservice whois jack.id
-	# > {"value":"","owner":"","price":[{"denom":"nametoken","amount":"1"}]}
+	
 
 
