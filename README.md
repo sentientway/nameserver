@@ -15,5 +15,8 @@ The nameserver module stores the value, owner, and price of a name. To impliment
 	- [Concept](implementation.md#Concept)
 	- [State](implementation.md#State)
 	- [Messages](implementation.md#Messages)
+	- [Handlers](implementation.md#Handlers)
+	- [Types](implementation.md#Types)
+	- [Keeper](implementation.md#Keeper)
 	- [Parameters](implementation.md#Parameters)
 	
