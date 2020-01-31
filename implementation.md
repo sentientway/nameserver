@@ -264,8 +264,8 @@ The nameserver uses three Handlers, one for each nameserver message SetName, Buy
 	// Type should return the action
 	func (msg MsgSetName) Type() string { return "set_name" }
 
-## Type
-The type ==nameserver== is embedded in ==baseapp==, which handles all communication with Tendermint Core.
+## Types
+The type *nameserver* is embedded in *baseapp*, which handles all communication with Tendermint Core.
   
 	package types
 	
@@ -297,17 +297,30 @@ The type ==nameserver== is embedded in ==baseapp==, which handles all communicat
 		return strings.TrimSpace(fmt.Sprintf(`Owner: %s Value: %s Price: %s`, w.Owner, w.Value, w.Price))
 	}
 
-The nameserver module uses two keys that are stored in a file key.go, which contains all keys used in the sdk.
+**Query Types:**
 
 	package types
-    
-	const (
-	// module name
-		ModuleName = "nameserver"
-    	
-	// StoreKey to be used when creating the KVStore
-		StoreKey = ModuleName
-	)
+
+	import "strings"
+
+	// QueryResResolve Queries Result Payload for a resolve query
+	type QueryResResolve struct {
+		Value string `json:"value"`
+	}
+
+	// implement fmt.Stringer
+	func (r QueryResResolve) String() string {
+		return r.Value
+	}
+
+	// QueryResNames Queries Result Payload for a names query
+	type QueryResNames []string
+
+	// implement fmt.Stringer
+	func (n QueryResNames) String() string {
+		return strings.Join(n[:], "\n")
+	}
+
 ### Error
 The file error.go handles all application errors. What follows is the portion of this file pertaining to the nameserver.
 	package types
@@ -340,7 +353,22 @@ The keeper.go file contains all of the Keepers contained within the SDK applicat
 	type Keeper struct {
 		storeKey  sdk.StoreKey // Unexposed key to access store from sdk.Context
 	}
-### Getters and Setters
+	
+**Keys:**
+
+The nameserver module uses two keys that are stored in the file key.go, which contains all keys used in the sdk.
+
+	package types
+    
+	const (
+	// module name
+		ModuleName = "nameserver"
+    	
+	// StoreKey to be used when creating the KVStore
+		StoreKey = ModuleName
+	)
+
+**Getters and Setters:**
 Getters and Setters add methods to interact with the nameserver KVStore.
 
 	// Sets the entire Whois metadata struct for a name
@@ -383,9 +411,258 @@ Getters and Setters add methods to interact with the nameserver KVStore.
 			cdc:        cdc,
 		}
 	}
+**Codec:** Register types so they can be encoded/decoded.
 
-## Parameters
+	package types
 
+	import (
+		"github.com/cosmos/cosmos-sdk/codec"
+	)
 
+	// ModuleCdc is the codec for the module
+	var ModuleCdc = codec.New()
+
+	func init() {
+		RegisterCodec(ModuleCdc)
+	}
+
+	// RegisterCodec registers concrete types on the Amino codec
+	func RegisterCodec(cdc *codec.Codec) {
+		cdc.RegisterConcrete(MsgSetName{}, "nameservice/SetName", nil)
+		cdc.RegisterConcrete(MsgBuyName{}, "nameservice/BuyName", nil)
+		cdc.RegisterConcrete(MsgDeleteName{}, "nameservice/DeleteName", nil)
+	}
+
+## CLI
+
+**Queries:**
+
+	package cli
+
+	import (
+		"fmt"
+
+		"github.com/cosmos/cosmos-sdk/client"
+		"github.com/cosmos/cosmos-sdk/client/context"
+		"github.com/cosmos/cosmos-sdk/codec"
+		"github.com/cosmos/sdk-tutorials/nameservice/x/nameservice/internal/types"
+		"github.com/spf13/cobra"
+	)
+
+	func GetQueryCmd(storeKey string, cdc *codec.Codec) *cobra.Command {
+		nameserviceQueryCmd := &cobra.Command{
+			Use:                        types.ModuleName,
+			Short:                      "Querying commands for the nameservice module",
+			DisableFlagParsing:         true,
+			SuggestionsMinimumDistance: 2,
+			RunE:                       client.ValidateCmd,
+		}
+		nameserviceQueryCmd.AddCommand(client.GetCommands(
+			GetCmdResolveName(storeKey, cdc),
+			GetCmdWhois(storeKey, cdc),
+			GetCmdNames(storeKey, cdc),
+		)...)
+		return nameserviceQueryCmd
+	}
+
+	// GetCmdResolveName queries information about a name
+	func GetCmdResolveName(queryRoute string, cdc *codec.Codec) *cobra.Command {
+		return &cobra.Command{
+			Use:   "resolve [name]",
+			Short: "resolve name",
+			Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				cliCtx := context.NewCLIContext().WithCodec(cdc)
+				name := args[0]
+
+				res, _, err := cliCtx.QueryWithData(fmt.Sprintf("custom/%s/resolve/%s", queryRoute, name), nil)
+				if err != nil {
+					fmt.Printf("could not resolve name - %s \n", name)
+					return nil
+				}
+
+				var out types.QueryResResolve
+				cdc.MustUnmarshalJSON(res, &out)
+				return cliCtx.PrintOutput(out)
+			},
+		}
+	}
+
+	// GetCmdWhois queries information about a domain
+	func GetCmdWhois(queryRoute string, cdc *codec.Codec) *cobra.Command {
+		return &cobra.Command{
+			Use:   "whois [name]",
+			Short: "Query whois info of name",
+			Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				cliCtx := context.NewCLIContext().WithCodec(cdc)
+				name := args[0]
+
+				res, _, err := cliCtx.QueryWithData(fmt.Sprintf("custom/%s/whois/%s", queryRoute, name), nil)
+				if err != nil {
+					fmt.Printf("could not resolve whois - %s \n", name)
+					return nil
+				}
+
+				var out types.Whois
+				cdc.MustUnmarshalJSON(res, &out)
+				return cliCtx.PrintOutput(out)
+			},
+		}
+	}
+
+	// GetCmdNames queries a list of all names
+	func GetCmdNames(queryRoute string, cdc *codec.Codec) *cobra.Command {
+		return &cobra.Command{
+			Use:   "names",
+			Short: "names",
+			// Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				cliCtx := context.NewCLIContext().WithCodec(cdc)
+
+				res, _, err := cliCtx.QueryWithData(fmt.Sprintf("custom/%s/names", queryRoute), nil)
+				if err != nil {
+					fmt.Printf("could not get query names\n")
+					return nil
+				}
+
+				var out types.QueryResNames
+				cdc.MustUnmarshalJSON(res, &out)
+				return cliCtx.PrintOutput(out)
+			},
+		}
+	}
+
+**Transactions:**
+
+	package cli
+
+	import (
+		"github.com/spf13/cobra"
+
+		"github.com/cosmos/cosmos-sdk/client"
+		"github.com/cosmos/cosmos-sdk/client/context"
+		"github.com/cosmos/cosmos-sdk/codec"
+		sdk "github.com/cosmos/cosmos-sdk/types"
+		"github.com/cosmos/cosmos-sdk/x/auth"
+		"github.com/cosmos/cosmos-sdk/x/auth/client/utils"
+		"github.com/cosmos/sdk-tutorials/nameservice/x/nameservice/internal/types"
+	)
+
+	func GetTxCmd(storeKey string, cdc *codec.Codec) *cobra.Command {
+		nameserviceTxCmd := &cobra.Command{
+			Use:                        types.ModuleName,
+			Short:                      "Nameservice transaction subcommands",
+			DisableFlagParsing:         true,
+			SuggestionsMinimumDistance: 2,
+			RunE:                       client.ValidateCmd,
+		}
+
+		nameserviceTxCmd.AddCommand(client.PostCommands(
+			GetCmdBuyName(cdc),
+			GetCmdSetName(cdc),
+			GetCmdDeleteName(cdc),
+		)...)
+
+		return nameserviceTxCmd
+	}
+
+	// GetCmdBuyName is the CLI command for sending a BuyName transaction
+	func GetCmdBuyName(cdc *codec.Codec) *cobra.Command {
+		return &cobra.Command{
+			Use:   "buy-name [name] [amount]",
+			Short: "bid for existing name or claim new name",
+			Args:  cobra.ExactArgs(2),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				cliCtx := context.NewCLIContext().WithCodec(cdc)
+
+				txBldr := auth.NewTxBuilderFromCLI().WithTxEncoder(utils.GetTxEncoder(cdc))
+
+				coins, err := sdk.ParseCoins(args[1])
+				if err != nil {
+					return err
+				}
+
+				msg := types.NewMsgBuyName(args[0], coins, cliCtx.GetFromAddress())
+				err = msg.ValidateBasic()
+				if err != nil {
+					return err
+				}
+
+				return utils.GenerateOrBroadcastMsgs(cliCtx, txBldr, []sdk.Msg{msg})
+			},
+		}
+	}
+
+	// GetCmdSetName is the CLI command for sending a SetName transaction
+	func GetCmdSetName(cdc *codec.Codec) *cobra.Command {
+		return &cobra.Command{
+			Use:   "set-name [name] [value]",
+			Short: "set the value associated with a name that you own",
+			Args:  cobra.ExactArgs(2),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				cliCtx := context.NewCLIContext().WithCodec(cdc)
+
+				txBldr := auth.NewTxBuilderFromCLI().WithTxEncoder(utils.GetTxEncoder(cdc))
+
+				msg := types.NewMsgSetName(args[0], args[1], cliCtx.GetFromAddress())
+				err := msg.ValidateBasic()
+				if err != nil {
+					return err
+				}
+
+				return utils.GenerateOrBroadcastMsgs(cliCtx, txBldr, []sdk.Msg{msg})
+			},
+		}
+	}
+
+	// GetCmdDeleteName is the CLI command for sending a DeleteName transaction
+	func GetCmdDeleteName(cdc *codec.Codec) *cobra.Command {
+		return &cobra.Command{
+			Use:   "delete-name [name]",
+			Short: "delete the name that you own along with it's associated fields",
+			Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				cliCtx := context.NewCLIContext().WithCodec(cdc)
+
+				txBldr := auth.NewTxBuilderFromCLI().WithTxEncoder(utils.GetTxEncoder(cdc))
+
+				msg := types.NewMsgDeleteName(args[0], cliCtx.GetFromAddress())
+				err := msg.ValidateBasic()
+				if err != nil {
+					return err
+				}
+				return utils.GenerateOrBroadcastMsgs(cliCtx, txBldr, []sdk.Msg{msg})
+			},
+		}
+	}
+
+	# First check the accounts to ensure they have funds
+	nscli query account $(nscli keys show jack -a)
+	nscli query account $(nscli keys show alice -a)
+
+	# Buy your first name using your coins from the genesis file
+	nscli tx nameservice buy-name jack.id 5nametoken --from jack
+
+	# Set the value for the name you just bought
+	nscli tx nameservice set-name jack.id 8.8.8.8 --from jack
+
+	# Try out a resolve query against the name you registered
+	nscli query nameservice resolve jack.id
+	# > 8.8.8.8
+
+	# Try out a whois query against the name you just registered
+	nscli query nameservice whois jack.id
+	# > 	{"value":"8.8.8.8","owner":"cosmos1l7k5tdt2qam0zecxrx78yuw447ga54dsmtpk2s","price":[{"denom":"nametoken","amount":"5"}]}
+
+	# Alice buys name from jack
+	nscli tx nameservice buy-name jack.id 10nametoken --from alice
+
+	# Alice decides to delete the name she just bought from jack
+	nscli tx nameservice delete-name jack.id --from alice
+
+	# Try out a whois query against the name you just deleted
+	nscli query nameservice whois jack.id
+	# > {"value":"","owner":"","price":[{"denom":"nametoken","amount":"1"}]}
 
 
